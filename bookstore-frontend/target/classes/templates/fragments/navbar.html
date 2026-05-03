@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="navbar">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+    <div class="container-fluid px-4">
+        <a th:href="@{/}" class="navbar-brand fw-bold fs-5">
+            <span class="text-warning">Book</span><span class="text-white">Store</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a th:href="@{/}" class="nav-link" th:classappend="${activePage == 'home'} ? 'active fw-semibold'">
+                        <i class="bi bi-house-door me-1"></i>Home
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a th:href="@{/authors}" class="nav-link"
+                        th:classappend="${activePage == 'authors'} ? 'active fw-semibold'">
+                        <i class="bi bi-people me-1"></i>Authors
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a th:href="@{/stores}" class="nav-link" th:classappend="${activePage == 'stores'} ? 'active fw-semibold'">
+                        <i class="bi bi-shop me-1"></i>Stores
+                    </a>
+                </li>
+                <li class="nav-item">
+                    
+                    <a th:href="@{/publishers}" class="nav-link"
+                        th:classappend="${activePage == 'publishers'} ? 'active fw-semibold'">
+                        <i class="bi bi-building me-1"></i>Publishers
+                    </a>
+                </li>
+            </ul>
+            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                <i class="bi bi-lightning-fill me-1"></i>Capgemini Sprint
+            </span>
+        </div>
+    </div>
+</nav>
+
+</html>

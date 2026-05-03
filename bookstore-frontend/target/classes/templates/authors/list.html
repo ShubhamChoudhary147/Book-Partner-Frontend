@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${pageTitle}">Authors</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+    <style>
+        body { background: #f1f5f9; }
+        .page-hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            color: white; padding: 36px 0 32px;
+        }
+        .table-card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); overflow: hidden; }
+        .table thead th { background: #f8fafc; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #64748b; border-bottom: 2px solid #e2e8f0; padding: 14px 16px; }
+        .table tbody td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
+        .table tbody tr { transition: background 0.15s; }
+        .table tbody tr:hover { background: #f8faff; }
+        .mono { font-family: 'Courier New', monospace; font-size: 13px; color: #475569; }
+        .search-box { position: relative; }
+        .search-box .bi-search { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+        .search-box input { padding-left: 36px; border-radius: 8px; border: 1.5px solid #e2e8f0; transition: border-color .2s; }
+        .search-box input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .empty-state { padding: 60px 20px; text-align: center; color: #94a3b8; }
+        .empty-state i { font-size: 48px; display: block; margin-bottom: 12px; }
+        /* Spinner on button only */
+        .btn-spinner { display: none; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 6px; }
+        .btn.loading .btn-spinner { display: inline-block; }
+        .btn.loading .btn-text { opacity: 0.7; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* AJAX table fade */
+        #tableSection { transition: opacity 0.2s; }
+        #tableSection.loading { opacity: 0.45; pointer-events: none; }
+        /* Pagination */
+        .page-link { border-radius: 6px !important; margin: 0 2px; }
+        .page-item.active .page-link { background: #4F46E5; border-color: #4F46E5; }
+        /* Modal */
+        .modal-header { background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; }
+        .form-label { font-size: 13px; font-weight: 600; color: #374151; }
+        .form-control:focus, .form-select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .required-star { color: #ef4444; }
+        .field-error { display: none; font-size: 12px; color: #ef4444; margin-top: 4px; }
+        .field-error.show { display: block; }
+        .form-control.invalid { border-color: #ef4444; }
+        /* Toast */
+        .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/navbar :: navbar}" th:with="activePage='authors'"></div>
+
+<!-- Page Hero -->
+<div class="page-hero">
+    <div class="container-fluid px-4">
+        <nav aria-label="breadcrumb" class="mb-2">
+            <ol class="breadcrumb mb-0" style="--bs-breadcrumb-divider-color:rgba(255,255,255,.4)">
+                <li class="breadcrumb-item"><a th:href="@{/}" class="text-white-50 text-decoration-none">Home</a></li>
+                <li class="breadcrumb-item active text-white">Authors</li>
+            </ol>
+        </nav>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-bold mb-1">Authors</h1>
+                <p class="mb-0 text-white-50 small">Manage author records — Shubham's Module</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a th:href="@{/}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Back
+                </a>
+                <button class="btn btn-warning btn-sm fw-semibold" onclick="openCreateModal()">
+                    <i class="bi bi-plus-lg me-1"></i>New Author
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+
+    <!-- Controls Row -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width:420px">
+            <div class="search-box flex-grow-1">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control form-control-sm"
+                       id="searchInput"
+                       placeholder="Search by name, ID, city, state…"
+                       th:value="${search}"
+                       oninput="handleSearch(this.value)"
+                       autocomplete="off"/>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm"
+                    id="searchClearBtn"
+                    th:style="${search != null and !search.isEmpty()} ? 'display:inline-flex' : 'display:none'"
+                    style="display:none"
+                    onclick="clearSearch()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <span class="text-muted small" th:if="${pageMeta != null}">
+            <i class="bi bi-people me-1"></i>
+            <strong th:text="${pageMeta.totalElements}">0</strong> authors total
+        </span>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card" id="tableSection">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Author ID</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Phone</th>
+                        <th>City</th>
+                        <th>State</th>
+                        <th>Contract</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="authorTableBody">
+                    <tr th:if="${authors == null or authors.isEmpty()}">
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <i class="bi bi-file-earmark-person"></i>
+                                <p class="fw-semibold mb-1">No authors found</p>
+                                <span class="small" th:if="${search != null and !search.isEmpty()}">Try a different search term</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:each="author : ${authors}" th:if="${authors != null and !authors.isEmpty()}">
+                        <td class="mono" th:text="${author.auId}"></td>
+                        <td th:text="${author.auFname}"></td>
+                        <td><strong th:text="${author.auLname}"></strong></td>
+                        <td class="mono" th:text="${author.phone}"></td>
+                        <td th:text="${author.city}"></td>
+                        <td th:text="${author.state}"></td>
+                        <td>
+                            <span class="badge rounded-pill"
+                                  th:classappend="${author.contract == 1} ? 'text-bg-success' : 'text-bg-danger'"
+                                  th:text="${author.contract == 1} ? 'Yes' : 'No'">
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a th:href="@{/authors/{id}(id=${author.auId})}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye me-1"></i>View
+                                </a>
+                                <button class="btn btn-outline-warning btn-sm"
+                                        th:attr="data-auid=${author.auId},
+                                                 data-fname=${author.auFname},
+                                                 data-lname=${author.auLname},
+                                                 data-phone=${author.phone},
+                                                 data-address=${author.address},
+                                                 data-city=${author.city},
+                                                 data-state=${author.state},
+                                                 data-zip=${author.zip},
+                                                 data-contract=${author.contract}"
+                                        onclick="handleEditClick(this)">
+                                    <i class="bi bi-pencil me-1"></i>Edit
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination (inside table-card, hidden during search) -->
+        <div class="d-flex align-items-center justify-content-between px-3 py-3 border-top"
+             id="paginationRow"
+             th:if="${pageMeta != null and pageMeta.totalPages > 1 and (search == null or search.isEmpty())}">
+            <small class="text-muted">
+                Page <strong th:text="${currentPage + 1}">1</strong> of <strong th:text="${pageMeta.totalPages}">1</strong>
+            </small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
+                        <button class="page-link" th:disabled="${currentPage == 0}"
+                                th:onclick="|fetchPage(${currentPage - 1})|">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                    </li>
+                    <th:block th:each="i : ${#numbers.sequence(0, pageMeta.totalPages - 1)}">
+                        <li class="page-item" th:classappend="${i == currentPage} ? 'active'">
+                            <button class="page-link" th:text="${i + 1}"
+                                    th:onclick="|fetchPage(${i})|"></button>
+                        </li>
+                    </th:block>
+                    <li class="page-item" th:classappend="${currentPage + 1 >= pageMeta.totalPages} ? 'disabled'">
+                        <button class="page-link" th:disabled="${currentPage + 1 >= pageMeta.totalPages}"
+                                th:onclick="|fetchPage(${currentPage + 1})|">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+<!-- CREATE MODAL -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0">New Author</h5>
+                    <small class="text-muted">All fields marked * are required</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form th:action="@{/authors/create}" method="post" id="createForm" onsubmit="return handleCreateSubmit(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Author ID <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="auId" id="c_auId" placeholder="e.g. 172-32-1176" maxlength="11"/>
+                            <div class="field-error" id="err_c_auId">Format must be 999-99-9999</div>
+                            <div class="form-text">Format: 999-99-9999 (SSN style)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">First Name <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="auFname" id="c_auFname" placeholder="First name" maxlength="20"/>
+                            <div class="field-error" id="err_c_auFname">First name is required</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Last Name <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="auLname" id="c_auLname" placeholder="Last name" maxlength="40"/>
+                            <div class="field-error" id="err_c_auLname">Last name is required</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="phone" id="c_phone" placeholder="phone Number" maxlength="12"/>
+                            <div class="field-error" id="err_c_phone">Phone number must be 10 to 12 digits</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">State <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="state" id="c_state" placeholder="e.g. UP" maxlength="2"/>
+                            <div class="field-error" id="err_c_state">State is required</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Address</label>
+                            <input type="text" class="form-control" name="address" id="c_address" placeholder="Street address" maxlength="40"/>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">City</label>
+                            <input type="text" class="form-control" name="city" id="c_city" placeholder="City" maxlength="20"/>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">PIN / ZIP</label>
+                            <input type="text" class="form-control" name="zip" id="c_zip" placeholder="5-digit PIN" maxlength="5"/>
+                            <div class="field-error" id="err_c_zip">Must be 5 digits, not starting with 0</div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Contract <span class="required-star">*</span></label>
+                            <select class="form-select" name="contract" id="c_contract">
+                                <option value="">Select…</option>
+                                <option value="1">Yes (1)</option>
+                                <option value="0">No (0)</option>
+                            </select>
+                            <div class="field-error" id="err_c_contract">Required</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary d-inline-flex align-items-center" id="createSubmitBtn">
+                        <span class="btn-text">Create Author</span>
+                        <span class="btn-spinner"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0">Edit Author</h5>
+                    <small class="text-muted">Author ID cannot be changed</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" method="post" onsubmit="return handleEditSubmit(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Author ID</label>
+                            <input type="text" class="form-control bg-light" name="auId" id="e_auId" disabled/>
+                            <div class="form-text">ID is locked and cannot be edited</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">First Name <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="auFname" id="e_auFname" placeholder="First name" maxlength="20"/>
+                            <div class="field-error" id="err_e_auFname">First name is required</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Last Name <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="auLname" id="e_auLname" placeholder="Last name" maxlength="40"/>
+                            <div class="field-error" id="err_e_auLname">Last name is required</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="phone" id="e_phone" placeholder="phone Number" maxlength="12"/>
+                            <div class="field-error" id="err_e_phone">Phone number must be 10 to 12 digits</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">State <span class="required-star">*</span></label>
+                            <input type="text" class="form-control" name="state" id="e_state" placeholder="e.g. UP" maxlength="2"/>
+                            <div class="field-error" id="err_e_state">State is required</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Address</label>
+                            <input type="text" class="form-control" name="address" id="e_address" placeholder="Street address" maxlength="40"/>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">City</label>
+                            <input type="text" class="form-control" name="city" id="e_city" placeholder="City" maxlength="20"/>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">PIN / ZIP</label>
+                            <input type="text" class="form-control" name="zip" id="e_zip" placeholder="5-digit PIN" maxlength="5"/>
+                            <div class="field-error" id="err_e_zip">Must be 5 digits, not starting with 0</div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Contract <span class="required-star">*</span></label>
+                            <select class="form-select" name="contract" id="e_contract">
+                                <option value="1">Yes (1)</option>
+                                <option value="0">No (0)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning d-inline-flex align-items-center" id="editSubmitBtn">
+                        <span class="btn-text">Save Changes</span>
+                        <span class="btn-spinner" style="border-color:rgba(0,0,0,.2);border-top-color:#333"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap">
+    <div id="successToast" class="toast align-items-center text-bg-success border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill"></i>
+                <span id="toastMsg">Saved!</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // ---- Current state ----
+    var currentPage = /*[[${currentPage}]]*/ 0;
+    var pageSize    = /*[[${pageSize}]]*/ 5;
+    var currentSearch = /*[[${search}]]*/ '';
+
+    // ---- On load: toast from URL param ----
+    window.addEventListener('load', function() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('success') === 'create') showToast('Author created successfully!');
+        if (params.get('success') === 'update') showToast('Author updated successfully!');
+    });
+
+    // ---- AJAX: fetch table + pagination without full reload ----
+    function fetchPage(page) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        url.searchParams.set('size', pageSize);
+        if (currentSearch) url.searchParams.set('search', currentSearch);
+        else url.searchParams.delete('search');
+        _doAjax(url, page);
+    }
+
+    function _doAjax(url, newPage) {
+        var section = document.getElementById('tableSection');
+        section.classList.add('loading');
+        fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                // Replace tbody
+                var newBody = doc.getElementById('authorTableBody');
+                if (newBody) document.getElementById('authorTableBody').innerHTML = newBody.innerHTML;
+                // Replace pagination
+                var newPag = doc.getElementById('paginationRow');
+                var oldPag = document.getElementById('paginationRow');
+                if (newPag && oldPag) oldPag.outerHTML = newPag.outerHTML;
+                else if (!newPag && oldPag) oldPag.style.display = 'none';
+                // Update browser URL silently
+                history.pushState({}, '', url.toString());
+                if (newPage !== undefined) currentPage = newPage;
+                section.classList.remove('loading');
+            })
+            .catch(function() { section.classList.remove('loading'); });
+    }
+
+    // ---- Search: AJAX, debounced ----
+    var searchTimer;
+    function handleSearch(val) {
+        clearTimeout(searchTimer);
+        var clearBtn = document.getElementById('searchClearBtn');
+        clearBtn.style.display = val ? 'inline-flex' : 'none';
+        searchTimer = setTimeout(function() {
+            currentSearch = val.trim();
+            var url = new URL(window.location.href);
+            if (currentSearch) { url.searchParams.set('search', currentSearch); url.searchParams.delete('page'); }
+            else { url.searchParams.delete('search'); url.searchParams.set('page', '0'); }
+            _doAjax(url, 0);
+        }, 350);
+    }
+
+    function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchClearBtn').style.display = 'none';
+        handleSearch('');
+    }
+
+    // ---- Modals ----
+    var createModalEl = new bootstrap.Modal(document.getElementById('createModal'));
+    var editModalEl   = new bootstrap.Modal(document.getElementById('editModal'));
+
+    function openCreateModal() {
+        clearCreateForm();
+        createModalEl.show();
+    }
+
+    function handleEditClick(btn) {
+        document.getElementById('e_auId').value    = btn.dataset.auid    || '';
+        document.getElementById('e_auFname').value = btn.dataset.fname   || '';
+        document.getElementById('e_auLname').value = btn.dataset.lname   || '';
+        document.getElementById('e_phone').value   = btn.dataset.phone   || '';
+        document.getElementById('e_address').value = btn.dataset.address || '';
+        document.getElementById('e_city').value    = btn.dataset.city    || '';
+        document.getElementById('e_state').value   = btn.dataset.state   || '';
+        document.getElementById('e_zip').value     = btn.dataset.zip     || '';
+        document.getElementById('e_contract').value = String(btn.dataset.contract);
+        document.getElementById('editForm').action = '/authors/update/' + encodeURIComponent(btn.dataset.auid);
+        clearEditErrors();
+        editModalEl.show();
+    }
+
+    // ---- Validation helpers ----
+    function validateId(v)       { return /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/.test(v); }
+    function validatePhone(v)    { return /^[0-9\s-]{10,12}$/.test(v); }
+    function validateZip(v)      { return v === '' || /^[1-9][0-9]{4}$/.test(v); }
+    function validateRequired(v) { return v.trim().length > 0; }
+
+    function setError(inputId, errId, show) {
+        var inp = document.getElementById(inputId);
+        var err = document.getElementById(errId);
+        if (!inp || !err) return;
+        inp.classList.toggle('is-invalid', show);
+        inp.classList.toggle('invalid', show);
+        err.classList.toggle('show', show);
+    }
+
+    function handleCreateSubmit(e) {
+        e.preventDefault();
+        var ok = true;
+        var auId = document.getElementById('c_auId').value.trim();
+        setError('c_auId','err_c_auId', !validateId(auId)); if (!validateId(auId)) ok=false;
+        var fname = document.getElementById('c_auFname').value;
+        setError('c_auFname','err_c_auFname', !validateRequired(fname)); if (!validateRequired(fname)) ok=false;
+        var lname = document.getElementById('c_auLname').value;
+        setError('c_auLname','err_c_auLname', !validateRequired(lname)); if (!validateRequired(lname)) ok=false;
+        var phone = document.getElementById('c_phone').value.trim();
+        setError('c_phone','err_c_phone', !validatePhone(phone)); if (!validatePhone(phone)) ok=false;
+        var state = document.getElementById('c_state').value;
+        setError('c_state','err_c_state', !validateRequired(state)); if (!validateRequired(state)) ok=false;
+        var zip = document.getElementById('c_zip').value.trim();
+        setError('c_zip','err_c_zip', !validateZip(zip)); if (!validateZip(zip)) ok=false;
+        var contract = document.getElementById('c_contract').value;
+        setError('c_contract','err_c_contract', contract === ''); if (contract === '') ok=false;
+        if (!ok) return false;
+        var btn = document.getElementById('createSubmitBtn');
+        btn.classList.add('loading'); btn.disabled = true;
+        document.getElementById('createForm').submit();
+        return true;
+    }
+
+    function handleEditSubmit(e) {
+        e.preventDefault();
+        var ok = true;
+        var fname = document.getElementById('e_auFname').value;
+        setError('e_auFname','err_e_auFname', !validateRequired(fname)); if (!validateRequired(fname)) ok=false;
+        var lname = document.getElementById('e_auLname').value;
+        setError('e_auLname','err_e_auLname', !validateRequired(lname)); if (!validateRequired(lname)) ok=false;
+        var phone = document.getElementById('e_phone').value.trim();
+        setError('e_phone','err_e_phone', !validatePhone(phone)); if (!validatePhone(phone)) ok=false;
+        var state = document.getElementById('e_state').value;
+        setError('e_state','err_e_state', !validateRequired(state)); if (!validateRequired(state)) ok=false;
+        var zip = document.getElementById('e_zip').value.trim();
+        setError('e_zip','err_e_zip', !validateZip(zip)); if (!validateZip(zip)) ok=false;
+        if (!ok) return false;
+        var btn = document.getElementById('editSubmitBtn');
+        btn.classList.add('loading'); btn.disabled = true;
+        document.getElementById('editForm').submit();
+        return true;
+    }
+
+    function clearCreateForm() {
+        ['c_auId','c_auFname','c_auLname','c_phone','c_address','c_city','c_state','c_zip'].forEach(function(id){
+            var el = document.getElementById(id); if(el){el.value='';el.classList.remove('is-invalid','invalid');}
+        });
+        document.getElementById('c_contract').value = '';
+        ['err_c_auId','err_c_auFname','err_c_auLname','err_c_phone','err_c_state','err_c_zip','err_c_contract'].forEach(function(id){
+            var el = document.getElementById(id); if(el) el.classList.remove('show');
+        });
+    }
+
+    function clearEditErrors() {
+        ['e_auFname','e_auLname','e_phone','e_state','e_zip'].forEach(function(id){
+            var el=document.getElementById(id); if(el) el.classList.remove('is-invalid','invalid');
+        });
+        ['err_e_auFname','err_e_auLname','err_e_phone','err_e_state','err_e_zip'].forEach(function(id){
+            var el=document.getElementById(id); if(el) el.classList.remove('show');
+        });
+    }
+
+    function showToast(msg) {
+        document.getElementById('toastMsg').textContent = msg;
+        var t = new bootstrap.Toast(document.getElementById('successToast'), { delay: 3500 });
+        t.show();
+    }
+</script>
+</body>
+</html>
