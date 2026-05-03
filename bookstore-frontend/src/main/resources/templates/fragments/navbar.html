@@ -20,6 +20,11 @@
                         <i class="bi bi-people me-1"></i>Authors
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a th:href="@{/stores}" class="nav-link" th:classappend="${activePage == 'stores'} ? 'active fw-semibold'">
+                        <i class="bi bi-shop me-1"></i>Stores
+                    </a>
+                </li>
             </ul>
             <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
                 <i class="bi bi-lightning-fill me-1"></i>Capgemini Sprint
