@@ -134,22 +134,29 @@
 
     <!-- Controls Row -->
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width:420px">
-            <div class="search-box flex-grow-1">
+        <div class="d-flex align-items-center gap-2">
+            <!-- Field selector -->
+            <select class="form-select form-select-sm" id="searchField"
+                    onchange="onFieldChange()"
+                    style="width:140px; border-radius:8px; border:1.5px solid #e2e8f0; font-size:13px; font-weight:600; color:#374151;">
+                <option value="">Search by…</option>
+                <option value="storName">Store Name</option>
+                <option value="city">City</option>
+                <option value="state">State</option>
+                <option value="zip">ZIP</option>
+            </select>
+            <!-- Value input — shown only when a field is selected -->
+            <div class="search-box" id="searchInputWrap" style="display:none; min-width:220px">
                 <i class="bi bi-search"></i>
                 <input type="text" class="form-control form-control-sm"
                        id="searchInput"
-                       placeholder="Search by name, city, state, zip…"
-                       th:value="${search}"
+                       placeholder="Enter value…"
                        oninput="handleSearch(this.value)"
                        autocomplete="off"/>
             </div>
-            <button class="btn btn-outline-secondary btn-sm"
-                    id="searchClearBtn"
-                    th:style="${search != null and !search.isEmpty()} ? 'display:inline-flex' : 'display:none'"
-                    style="display:none"
-                    onclick="clearSearch()">
-                <i class="bi bi-x-lg"></i>
+            <button class="btn btn-outline-secondary btn-sm" id="searchClearBtn"
+                    style="display:none" onclick="clearSearch()">
+                <i class="bi bi-x-lg"></i> Clear
             </button>
         </div>
         <span class="text-muted small" th:if="${pageMeta != null}">
@@ -278,8 +285,8 @@
                             <label class="form-label">Store ID <span class="required-star">*</span></label>
                             <input type="text" class="form-control" name="storId" id="c_storId"
                                    placeholder="e.g. 6380" maxlength="4"/>
-                            <div class="field-error" id="err_c_storId">Store ID is required (max 4 characters)</div>
-                            <div class="form-text text-muted">Internal reference code, max 4 characters</div>
+                            <div class="field-error" id="err_c_storId">Store ID must be 1–4 digits only (e.g. 2322)</div>
+                            <div class="form-text text-muted">Numeric code, max 4 digits — e.g. 2322</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Store Name <span class="required-star">*</span></label>
@@ -440,23 +447,53 @@
 
     // ── Search ──────────────────────────────────────────────────────────────
     var searchTimer;
+
+    function onFieldChange() {
+        var field = document.getElementById('searchField').value;
+        var wrap  = document.getElementById('searchInputWrap');
+        var input = document.getElementById('searchInput');
+        if (field) {
+            wrap.style.display = 'block';
+            var placeholders = { storName: 'e.g. Eric the Read Books', city: 'e.g. Seattle', state: 'e.g. WA', zip: 'e.g. 98056' };
+            input.placeholder = placeholders[field] || 'Enter value…';
+            input.focus();
+        } else {
+            wrap.style.display = 'none';
+            clearSearch();
+        }
+    }
+
     function handleSearch(val) {
         clearTimeout(searchTimer);
         var clearBtn = document.getElementById('searchClearBtn');
-        clearBtn.style.display = val ? 'inline-flex' : 'none';
+        clearBtn.style.display = val.trim() ? 'inline-flex' : 'none';
         searchTimer = setTimeout(function() {
-            currentSearch = val.trim();
+            var field = document.getElementById('searchField').value;
+            var value = val.trim();
             var url = new URL(window.location.href);
-            if (currentSearch) { url.searchParams.set('search', currentSearch); url.searchParams.delete('page'); }
-            else { url.searchParams.delete('search'); url.searchParams.set('page', '0'); }
+            if (field && value) {
+                url.searchParams.set('searchField', field);
+                url.searchParams.set('searchValue', value);
+                url.searchParams.delete('page');
+            } else {
+                url.searchParams.delete('searchField');
+                url.searchParams.delete('searchValue');
+                url.searchParams.set('page', '0');
+            }
             _doAjax(url, 0);
         }, 350);
     }
 
     function clearSearch() {
         document.getElementById('searchInput').value = '';
+        document.getElementById('searchField').value = '';
+        document.getElementById('searchInputWrap').style.display = 'none';
         document.getElementById('searchClearBtn').style.display = 'none';
-        handleSearch('');
+        var url = new URL(window.location.href);
+        url.searchParams.delete('searchField');
+        url.searchParams.delete('searchValue');
+        url.searchParams.set('page', '0');
+        _doAjax(url, 0);
     }
 
     // ── Modals ──────────────────────────────────────────────────────────────
@@ -483,7 +520,7 @@
     function validateRequired(v) { return v.trim().length > 0; }
     function validateState(v)    { return /^[A-Za-z]{2}$/.test(v.trim()); }
     function validateZip(v)      { return v.trim() === '' || /^[0-9]{5}$/.test(v.trim()); }
-    function validateStorId(v)   { return v.trim().length > 0 && v.trim().length <= 4; }
+    function validateStorId(v)   { return /^\d{1,4}$/.test(v.trim()); }
 
     function setError(inputId, errId, show) {
         var inp = document.getElementById(inputId);

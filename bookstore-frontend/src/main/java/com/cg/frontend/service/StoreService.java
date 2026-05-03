@@ -91,19 +91,22 @@ public class StoreService {
         }
     }
 
-    // ── Search ────────────────────────────────────────────────────────────────
+    // ── Search (exact field match) ─────────────────────────────────────────────
 
-    public List<StoreDto> searchStores(String query) {
+    public List<StoreDto> searchStores(String field, String value) {
         try {
-            String url = baseUrl + "/stores?page=0&size=100";
+            String url = baseUrl + "/stores?page=0&size=200";
             ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
             JsonNode embedded = response.getBody().path("_embedded").path("stores");
             List<StoreDto> stores = new ArrayList<>();
-            String q = query.toLowerCase();
+            String v = value.trim().toLowerCase();
             if (embedded.isArray()) {
                 for (JsonNode node : embedded) {
                     StoreDto s = nodeToStoreDto(node);
-                    if (matchesQuery(s, q)) stores.add(s);
+                    String fieldVal = getField(s, field);
+                    if (fieldVal != null && fieldVal.toLowerCase().equals(v)) {
+                        stores.add(s);
+                    }
                 }
             }
             return stores;
@@ -113,12 +116,15 @@ public class StoreService {
         }
     }
 
-    private boolean matchesQuery(StoreDto s, String q) {
-        return (s.getStorName()    != null && s.getStorName().toLowerCase().contains(q))
-            || (s.getCity()        != null && s.getCity().toLowerCase().contains(q))
-            || (s.getState()       != null && s.getState().toLowerCase().contains(q))
-            || (s.getStorAddress() != null && s.getStorAddress().toLowerCase().contains(q))
-            || (s.getZip()         != null && s.getZip().contains(q));
+    private String getField(StoreDto s, String field) {
+        switch (field) {
+            case "storName":    return s.getStorName();
+            case "city":        return s.getCity();
+            case "state":       return s.getState();
+            case "zip":         return s.getZip();
+            case "storAddress": return s.getStorAddress();
+            default:            return null;
+        }
     }
 
     // ── Detail ────────────────────────────────────────────────────────────────

@@ -28,14 +28,18 @@ public class StoreController {
     public String listStores(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "8") int size,
-            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String searchField,
+            @RequestParam(required = false) String searchValue,
             Model model) {
 
         List<StoreDto> stores;
         PageMetaDto pageMeta;
 
-        if (search != null && !search.isBlank()) {
-            stores = storeService.searchStores(search);
+        boolean isSearching = searchField != null && !searchField.isBlank()
+                           && searchValue != null && !searchValue.isBlank();
+
+        if (isSearching) {
+            stores = storeService.searchStores(searchField, searchValue);
             pageMeta = new PageMetaDto();
             pageMeta.setTotalElements(stores.size());
             pageMeta.setTotalPages(1);
@@ -50,7 +54,8 @@ public class StoreController {
         model.addAttribute("pageMeta", pageMeta);
         model.addAttribute("currentPage", page);
         model.addAttribute("pageSize", size);
-        model.addAttribute("search", search);
+        model.addAttribute("searchField", searchField);
+        model.addAttribute("searchValue", searchValue);
         model.addAttribute("pageTitle", "Stores — Amritansu's Module");
         return "stores/list";
     }
@@ -98,6 +103,6 @@ public class StoreController {
             ra.addFlashAttribute("errorMsg", error);
             return "redirect:/stores/" + storId + "?error=update";
         }
-        return "redirect:/stores/" + storId + "?success=update";
+        return "redirect:/stores?success=update";
     }
 }
